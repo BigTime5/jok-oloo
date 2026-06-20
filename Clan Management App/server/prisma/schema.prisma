@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Member {
+  id               Int           @id @default(autoincrement())
+  name             String
+  phone            String        @default("")
+  branch           String
+  registrationPaid Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  payments         Payment[]
+  reminders        ReminderLog[]
+}
+
+model Payment {
+  id        Int       @id @default(autoincrement())
+  memberId  Int
+  month     String
+  type      String
+  amount    Int
+  paid      Boolean   @default(false)
+  paidAt    DateTime?
+  markedBy  String    @default("admin")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, month, type])
+  @@index([month])
+}
+
+model ReminderLog {
+  id       Int      @id @default(autoincrement())
+  memberId Int
+  month    String
+  message  String
+  sentVia  String   @default("wame")
+  status   String   @default("pending")
+  sentAt   DateTime @default(now())
+  member   Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+model SystemConfig {
+  key   String @id
+  value String
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  adminUser String
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+}

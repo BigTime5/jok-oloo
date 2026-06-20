@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 43 53% 96%;
+    --foreground: 0 0% 10%;
+    --card: 43 53% 96%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 18 80% 55%;
+    --primary-foreground: 43 53% 96%;
+    --secondary: 82 46% 25%;
+    --secondary-foreground: 43 53% 96%;
+    --muted: 37 30% 90%;
+    --muted-foreground: 0 0% 54%;
+    --accent: 37 30% 90%;
+    --accent-foreground: 0 0% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 37 30% 90%;
+    --input: 37 30% 90%;
+    --ring: 18 80% 55%;
+    --radius: 0.75rem;
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 43 53% 96%;
+    --sidebar-primary: 18 80% 55%;
+    --sidebar-primary-foreground: 43 53% 96%;
+    --sidebar-accent: 0 0% 16%;
+    --sidebar-accent-foreground: 43 53% 96%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 18 80% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-cream text-charcoal font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-terracotta text-cream px-6 py-2.5 rounded-full font-medium transition-all duration-300;
+    box-shadow: 0px 2px 8px rgba(232, 106, 51, 0.25);
+  }
+  .btn-primary:hover {
+    @apply scale-[1.02];
+    box-shadow: 0px 4px 16px rgba(232, 106, 51, 0.35);
+  }
+  .btn-outline {
+    @apply border-2 border-terracotta text-terracotta px-6 py-2.5 rounded-full font-medium transition-all duration-300 bg-transparent;
+  }
+  .btn-outline:hover {
+    @apply bg-terracotta text-cream;
+  }
+  .card-warm {
+    @apply bg-cream rounded-2xl;
+    box-shadow: 0px 4px 24px rgba(26, 26, 26, 0.06);
+  }
+  .card-white {
+    @apply bg-white rounded-2xl;
+    box-shadow: 0px 4px 24px rgba(26, 26, 26, 0.06);
+  }
+  .input-warm {
+    @apply bg-white border border-warmborder rounded-xl px-4 py-3 text-charcoal placeholder-mutedgray transition-all duration-200 focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/20;
+  }
+  .status-paid {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-olive/10 text-olive;
+  }
+  .status-unpaid {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-mutedgray;
+  }
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-cream/70 transition-all duration-200 hover:text-cream hover:bg-cream/10;
+  }
+  .nav-item.active {
+    @apply text-cream bg-cream/15;
+  }
+  .table-row-warm {
+    @apply transition-all duration-200 border-l-4 border-transparent;
+  }
+  .table-row-warm:hover {
+    @apply bg-[#FDFAF3] border-l-terracotta;
+  }
+  .section-heading {
+    @apply text-xl font-serif font-bold text-charcoal;
+  }
+  .stat-card {
+    @apply flex flex-col items-center text-center p-6;
+  }
+  .stat-value {
+    @apply text-3xl font-serif font-bold text-terracotta;
+  }
+  .stat-label {
+    @apply text-xs text-mutedgray uppercase tracking-wider font-semibold mt-1;
+  }
+  .branch-tag {
+    @apply inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-warmborder/60 text-charcoal/70;
+  }
+}
+
+@layer utilities {
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-400 { animation-delay: 400ms; }
+  .animation-delay-500 { animation-delay: 500ms; }
+  .animation-delay-600 { animation-delay: 600ms; }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
