@@ -48,7 +48,6 @@ services:
   - type: web
     name: jok-oloo
     runtime: static
-    plan: free
     rootDir: Clan Management App/app
     buildCommand: npm install && npm run build
     staticPublishPath: dist
