@@ -31,8 +31,10 @@ interface ReminderData {
   memberId: number;
   memberName: string;
   phone: string;
-  message: string;
-  waLink: string;
+  messageEn: string;
+  waLinkEn: string;
+  messageLuo: string;
+  waLinkLuo: string;
 }
 
 type View = 'dashboard' | 'members' | 'announcements' | 'reminders' | 'memberProfile'
@@ -795,6 +797,7 @@ function RemindersView() {
   const [fetched, setFetched] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState<number | null>(null)
+  const [language, setLanguage] = useState<'en' | 'luo'>('en')
 
   // Generate month options: current month + last 5 months
   const monthOptions = useMemo(() => {
@@ -852,7 +855,7 @@ function RemindersView() {
         body: JSON.stringify({
           memberId: rem.memberId,
           month,
-          message: rem.message,
+          message: language === 'en' ? rem.messageEn : rem.messageLuo,
           sentVia: 'wame',
         }),
       })
@@ -862,7 +865,7 @@ function RemindersView() {
       setSending(null)
     }
     // Open WhatsApp link
-    window.open(rem.waLink, '_blank', 'noopener,noreferrer')
+    window.open(language === 'en' ? rem.waLinkEn : rem.waLinkLuo, '_blank', 'noopener,noreferrer')
   }
 
   return (
@@ -910,18 +913,36 @@ function RemindersView() {
         {/* Results */}
         {fetched && reminders.length > 0 && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h4 className="font-serif font-bold text-charcoal">Unpaid for {month}</h4>
-              <span className="px-3 py-1 bg-terracotta/10 text-terracotta text-xs font-semibold rounded-full">
-                {reminders.length} member{reminders.length !== 1 ? 's' : ''}
-              </span>
+              <div className="flex items-center gap-3 self-end sm:self-auto">
+                <div className="bg-warmborder/50 rounded-full p-1 flex">
+                  <button
+                    onClick={() => setLanguage('en')}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${language === 'en' ? 'bg-white shadow text-charcoal' : 'text-mutedgray'}`}
+                  >
+                    English
+                  </button>
+                  <button
+                    onClick={() => setLanguage('luo')}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${language === 'luo' ? 'bg-white shadow text-charcoal' : 'text-mutedgray'}`}
+                  >
+                    Dholuo
+                  </button>
+                </div>
+                <span className="px-3 py-1 bg-terracotta/10 text-terracotta text-xs font-semibold rounded-full whitespace-nowrap">
+                  {reminders.length} member{reminders.length !== 1 ? 's' : ''}
+                </span>
+              </div>
             </div>
             {reminders.map((rem, i) => (
               <div key={i} className="card-white p-4 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <h5 className="font-medium text-charcoal truncate">{rem.memberName}</h5>
                   <p className="text-xs text-mutedgray">{rem.phone || 'No phone'}</p>
-                  <p className="text-xs text-mutedgray/70 mt-1 line-clamp-2">{rem.message}</p>
+                  <p className="text-xs text-mutedgray/70 mt-1 line-clamp-3 whitespace-pre-wrap">
+                    {language === 'en' ? rem.messageEn : rem.messageLuo}
+                  </p>
                 </div>
                 {rem.phone ? (
                   <button

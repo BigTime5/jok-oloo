@@ -44,18 +44,25 @@ remindersRouter.post('/generate/:month', async (req: AuthRequest, res: Response)
     );
 
     const reminders = unpaid.map((member) => {
-      const message = `Hi ${member.name}, your ${month} contribution of ${amount}/= is due. Please send to ${treasurerName} on ${treasurerPhone}. Reply PAID once done.`;
+      const messageEn = `Hi ${member.name},\n🔔 Jok Oloo Notice\n\nYour ${month} clan contribution of KSh ${amount} is now due. Kindly send to our treasurer ${treasurerName} – ${treasurerPhone}.\n\nReply PAID once complete to keep your records updated in Jok Oloo`;
+      
+      const messageLuo = `Amosi ${member.name},\n\n🔔 Lando mar Jok Oloo\n\nChiwo mari mar anyuola mar dwe mar ${month} mar KSh ${amount} koro osechopo kinde mar chulo. Yie ioor ne jakana pesawa ${treasurerName} – ${treasurerPhone}\n\nDuok ni 'PAID' ka isetieko mondo iket rekod mari obed manyien e Jok Oloo`;
+
       const phone = member.phone.startsWith('0')
         ? `254${member.phone.slice(1)}`
         : member.phone;
-      const waLink = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+        
+      const waLinkEn = `https://wa.me/${phone}?text=${encodeURIComponent(messageEn)}`;
+      const waLinkLuo = `https://wa.me/${phone}?text=${encodeURIComponent(messageLuo)}`;
 
       return {
         memberId: member.id,
         memberName: member.name,
         phone: member.phone,
-        message,
-        waLink,
+        messageEn,
+        waLinkEn,
+        messageLuo,
+        waLinkLuo,
       };
     });
     
