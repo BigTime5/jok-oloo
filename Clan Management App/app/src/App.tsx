@@ -815,9 +815,10 @@ function RemindersView() {
     setError(null)
     setReminders([])
     try {
+      const token = localStorage.getItem('admin_token')
       const res = await fetch(`${API_BASE}/api/reminders/generate/${encodeURIComponent(month)}`, {
         method: 'POST',
-        credentials: 'include',  // ← send JWT cookie with the request
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       })
       if (res.ok) {
         const data = await res.json()
@@ -841,10 +842,13 @@ function RemindersView() {
   const handleSend = async (rem: ReminderData, idx: number) => {
     setSending(idx)
     try {
+      const token = localStorage.getItem('admin_token')
       await fetch(`${API_BASE}/api/reminders/log`, {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           memberId: rem.memberId,
           month,
@@ -1037,11 +1041,16 @@ function LoginModal({ onLogin, onClose }: { onLogin: () => void, onClose: () => 
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
-        credentials: 'include',  // ← ensure cookie is accepted from server
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       })
       if (res.ok) {
+        const data = await res.json()
+        // Store token in localStorage for cross-origin auth
+        if (data.token) {
+          localStorage.setItem('admin_token', data.token)
+          localStorage.setItem('admin_username', username)
+        }
         onLogin()
       } else {
         const data = await res.json()
@@ -1112,15 +1121,23 @@ export default function App() {
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
 
-  // Auth check
+  // Auth check — use localStorage token (cookie won't travel cross-origin)
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' })
+        const token = localStorage.getItem('admin_token')
+        if (!token) { setIsLoadingAuth(false); return }
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
         if (res.ok) {
           const data = await res.json()
           setAdminName(data.username)
           setIsAdmin(true)
+        } else {
+          // Token invalid/expired — clear it
+          localStorage.removeItem('admin_token')
+          localStorage.removeItem('admin_username')
         }
       } catch (e) {
         console.error(e)
@@ -1131,10 +1148,10 @@ export default function App() {
     checkAuth()
   }, [])
 
-  // Fetch members
+  // Fetch members (public endpoint — no auth needed)
   const fetchMembers = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/members`, { credentials: 'include' })
+      const res = await fetch(`${API_BASE}/api/members`)
       if (res.ok) {
         setMembers(await res.json())
       }
@@ -1148,9 +1165,13 @@ export default function App() {
   }, [])
 
   const handleLogout = async () => {
-    await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' })
+    localStorage.removeItem('admin_token')
+    localStorage.removeItem('admin_username')
     setIsAdmin(false)
     setAdminName('')
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST' })
+    } catch { /* ignore */ }
   }
 
   const selectedMember = useMemo(
@@ -1169,9 +1190,13 @@ export default function App() {
 
   const handleAddMember = async (newMember: Partial<Member>) => {
     try {
+      const token = localStorage.getItem('admin_token')
       await fetch(`${API_BASE}/api/members`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(newMember)
       })
       await fetchMembers()
@@ -1182,7 +1207,11 @@ export default function App() {
 
   const handleUpdateRegistration = async (id: number, _paid?: boolean) => {
     try {
-      await fetch(`${API_BASE}/api/payments/registration/${id}`, { method: 'POST' })
+      const token = localStorage.getItem('admin_token')
+      await fetch(`${API_BASE}/api/payments/registration/${id}`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      })
       await fetchMembers()
     } catch (e) {
       console.error(e)
@@ -1191,9 +1220,13 @@ export default function App() {
 
   const handleUpdateMonthly = async (memberId: number, month: string, paid: boolean) => {
     try {
+      const token = localStorage.getItem('admin_token')
       await fetch(`${API_BASE}/api/payments/mark`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ memberId, month, type: 'monthly', amount: 100, paid })
       })
       await fetchMembers()
@@ -1260,11 +1293,9 @@ export default function App() {
           onLogin={async () => {
             setIsAdmin(true)
             setShowLoginModal(false)
-            // Re-fetch admin name from /me now that the cookie is set
-            try {
-              const r = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' })
-              if (r.ok) { const d = await r.json(); setAdminName(d.username) }
-            } catch { /* ignore */ }
+            // Read the username we stored during login
+            const savedUsername = localStorage.getItem('admin_username')
+            if (savedUsername) setAdminName(savedUsername)
           }}
           onClose={() => setShowLoginModal(false)} 
         />
