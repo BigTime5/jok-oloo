@@ -607,10 +607,38 @@ function MemberProfileModal({
   onClose: () => void
   onUpdateRegistration: (memberId: number, paid: boolean) => Promise<void>
   onUpdateMonthly: (memberId: number, month: string, paid: boolean) => Promise<void>
+  onUpdateMember: (memberId: number, data: { name: string, phone: string, branch: string }) => Promise<void>
   isAdmin: boolean
   onLoginRequest: () => void
+  existingBranches: string[]
 }) {
   const [isEditing, setIsEditing] = useState(false)
+  const [isEditingDetails, setIsEditingDetails] = useState(false)
+  
+  // Edit state
+  const [editName, setEditName] = useState(member?.name || '')
+  const [editPhone, setEditPhone] = useState(member?.phone || '')
+  const [editBranch, setEditBranch] = useState(member?.branch || '')
+  const [customBranch, setCustomBranch] = useState('')
+  const [showCustom, setShowCustom] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  // Sync state if member changes
+  useEffect(() => {
+    if (member) {
+      setEditName(member.name)
+      setEditPhone(member.phone)
+      setEditBranch(member.branch)
+      setCustomBranch('')
+      setShowCustom(false)
+    }
+  }, [member])
+
+  const allBranches = useMemo(() => {
+    const set = new Set(DEFAULT_BRANCHES)
+    existingBranches.forEach(b => set.add(b))
+    return Array.from(set).sort()
+  }, [existingBranches])
 
   if (!member) return null
 
@@ -619,9 +647,41 @@ function MemberProfileModal({
 
   const handleEditClick = () => {
     if (isAdmin) {
-      setIsEditing(!isEditing)
+      if (isEditingDetails) {
+        setIsEditingDetails(false)
+        setIsEditing(false)
+        // Reset to original
+        if (member) {
+          setEditName(member.name)
+          setEditPhone(member.phone)
+          setEditBranch(member.branch)
+        }
+      } else {
+        setIsEditing(!isEditing)
+      }
     } else {
       onLoginRequest()
+    }
+  }
+
+  const handleSaveDetails = async () => {
+    if (!member) return
+    const finalBranch = showCustom ? customBranch.trim() : editBranch
+    if (!editName.trim() || !finalBranch) return
+    
+    setSaving(true)
+    try {
+      await onUpdateMember(member.id, {
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        branch: finalBranch
+      })
+      setIsEditingDetails(false)
+      setIsEditing(false)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -641,21 +701,101 @@ function MemberProfileModal({
             <div className="w-20 h-20 rounded-full bg-terracotta/10 flex items-center justify-center mb-3">
               <span className="text-terracotta font-serif font-bold text-2xl">{member.name.charAt(0)}</span>
             </div>
-            <h3 className="font-serif text-xl font-bold text-charcoal">{member.name}</h3>
-            <p className="text-sm text-mutedgray mt-1">{member.branch}</p>
-            <p className="text-sm font-medium text-terracotta mt-2">KES {totalPaid} paid</p>
+            
+            {!isEditingDetails ? (
+              <>
+                <h3 className="font-serif text-xl font-bold text-charcoal">{member.name}</h3>
+                <p className="text-sm text-mutedgray mt-1">{member.branch}</p>
+              </>
+            ) : (
+              <div className="w-full space-y-3 mt-2 text-left">
+                <div>
+                  <label className="block text-xs font-medium text-mutedgray mb-1">Name</label>
+                  <input 
+                    type="text" 
+                    value={editName} 
+                    onChange={e => setEditName(e.target.value)}
+                    className="w-full input-warm text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-mutedgray mb-1">Branch</label>
+                  {!showCustom ? (
+                    <div className="space-y-1">
+                      <select
+                        value={editBranch}
+                        onChange={e => setEditBranch(e.target.value)}
+                        className="w-full input-warm appearance-none bg-white text-sm"
+                      >
+                        <option value="">— Select branch —</option>
+                        {allBranches.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => { setShowCustom(true); setEditBranch('') }}
+                        className="text-xs text-terracotta font-medium hover:underline flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" /> Add new branch
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <input
+                        type="text"
+                        value={customBranch}
+                        onChange={e => setCustomBranch(e.target.value)}
+                        placeholder="New branch name"
+                        className="w-full input-warm text-sm"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setShowCustom(false); setCustomBranch('') }}
+                        className="text-xs text-mutedgray font-medium hover:underline"
+                      >
+                        ← Back to existing
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            <p className="text-sm font-medium text-terracotta mt-3">KES {totalPaid} paid</p>
           </div>
         </div>
 
-        <div className="p-6 border-b border-warmborder">
-          <h4 className="text-sm font-bold text-charcoal mb-3 uppercase tracking-wider">Contact Details</h4>
-          <div className="flex items-center gap-3">
-            <Phone className="w-4 h-4 text-mutedgray" />
-            <div>
-              <p className="text-xs text-mutedgray">Phone</p>
-              <p className="text-sm font-medium text-charcoal">{formatPhone(member.phone)}</p>
-            </div>
+        <div className="p-6 border-b border-warmborder relative">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-bold text-charcoal uppercase tracking-wider">Contact Details</h4>
+            {isEditing && !isEditingDetails && (
+              <button 
+                onClick={() => setIsEditingDetails(true)}
+                className="text-xs text-terracotta font-medium hover:underline"
+              >
+                Edit Info
+              </button>
+            )}
           </div>
+          
+          {!isEditingDetails ? (
+            <div className="flex items-center gap-3">
+              <Phone className="w-4 h-4 text-mutedgray" />
+              <div>
+                <p className="text-xs text-mutedgray">Phone</p>
+                <p className="text-sm font-medium text-charcoal">{formatPhone(member.phone)}</p>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-medium text-mutedgray mb-1">Phone</label>
+              <input 
+                type="tel" 
+                value={editPhone} 
+                onChange={e => setEditPhone(e.target.value)}
+                className="w-full input-warm text-sm"
+              />
+            </div>
+          )}
         </div>
 
         <div className="p-6 flex-1">
@@ -707,9 +847,20 @@ function MemberProfileModal({
           <button onClick={onClose} className="flex-1 py-2.5 rounded-full border border-warmborder text-sm font-medium hover:bg-warmborder/50 transition-colors text-charcoal">
             Close
           </button>
-          <button onClick={handleEditClick} className={`flex-1 py-2.5 rounded-full text-sm font-medium text-cream transition-colors ${isEditing ? 'bg-olive' : 'bg-terracotta'}`}>
-            {isEditing ? 'Done Editing' : 'Admin Edit'}
-          </button>
+          
+          {isEditingDetails ? (
+            <button 
+              onClick={handleSaveDetails} 
+              disabled={saving}
+              className="flex-1 py-2.5 rounded-full text-sm font-medium text-cream bg-terracotta hover:bg-[#D65D2A] transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          ) : (
+            <button onClick={handleEditClick} className={`flex-1 py-2.5 rounded-full text-sm font-medium text-cream transition-colors ${isEditing ? 'bg-olive' : 'bg-terracotta'}`}>
+              {isEditing ? 'Done Editing Payments' : 'Admin Edit'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -1316,6 +1467,28 @@ export default function App() {
     }
   }
 
+  const handleUpdateMember = async (memberId: number, data: { name: string, phone: string, branch: string }) => {
+    try {
+      const token = localStorage.getItem('admin_token')
+      const res = await fetch(`${API_BASE}/api/members/${memberId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(data)
+      })
+      if (res.ok) {
+        await fetchMembers()
+      } else {
+        const body = await res.json()
+        alert(body.error || 'Failed to update member')
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-cream">
       <Header 
@@ -1360,8 +1533,10 @@ export default function App() {
           onClose={() => { setProfileModalOpen(false); setSelectedMemberId(null) }}
           onUpdateRegistration={handleUpdateRegistration}
           onUpdateMonthly={handleUpdateMonthly}
+          onUpdateMember={handleUpdateMember}
           isAdmin={isAdmin}
           onLoginRequest={() => setShowLoginModal(true)}
+          existingBranches={members.map(m => m.branch)}
         />
       )}
       <AddMemberModal
