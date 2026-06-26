@@ -40,7 +40,7 @@ interface ReminderData {
 type View = 'dashboard' | 'members' | 'announcements' | 'reminders' | 'memberProfile'
 
 // ─── Initial Data ────────────────────────────────────────────────────────────
-const BRANCHES = ['Ndege', 'Otieno', 'Orinda', 'Atieno', 'Obondo', 'Akoth', 'Oluoch', 'Nyagilo', 'Odhiambo', 'Aduowo', 'Other']
+const DEFAULT_BRANCHES = ['Ndege', 'Otieno', 'Orinda', 'Atieno', 'Obondo', 'Akoth', 'Oluoch', 'Nyagilo', 'Odhiambo', 'Aduowo']
 
 const ANNOUNCEMENTS = [
   {
@@ -272,6 +272,8 @@ function Dashboard({
   const paidReg = members.filter(m => m.registrationPaid).length
   const unpaidReg = totalMembers - paidReg
   const totalCollected = members.reduce((sum, m) => sum + getTotalPaid(m), 0)
+  const regCollected = members.filter(m => m.registrationPaid).length * 50
+  const monthlyCollected = totalCollected - regCollected
   const monthlyTarget = totalMembers * 100
 
   const branchData = useMemo(() => {
@@ -281,10 +283,9 @@ function Dashboard({
   }, [members])
 
   const chartData = [
-    { name: 'Week 1', collected: 400, target: 1000 },
-    { name: 'Week 2', collected: 800, target: 2000 },
-    { name: 'Week 3', collected: totalCollected * 0.6, target: 3000 },
-    { name: 'Week 4', collected: totalCollected, target: monthlyTarget },
+    { name: 'Registration', collected: regCollected, target: totalMembers * 50 },
+    { name: 'Monthly', collected: monthlyCollected, target: monthlyTarget },
+    { name: 'Total', collected: totalCollected, target: totalMembers * 50 + monthlyTarget },
   ]
 
   const recentMembers = [...members].sort((a, b) => b.id - a.id).slice(0, 5)
@@ -448,6 +449,13 @@ function MembersDirectory({
   const [filterBranch, setFilterBranch] = useState('All')
   const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'unpaid'>('all')
 
+  // Build branch list dynamically from actual members + defaults
+  const allBranches = useMemo(() => {
+    const set = new Set(DEFAULT_BRANCHES)
+    members.forEach(m => { if (m.branch) set.add(m.branch) })
+    return Array.from(set).sort()
+  }, [members])
+
   const filtered = useMemo(() => {
     return members.filter(m => {
       const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -497,7 +505,7 @@ function MembersDirectory({
             >
               All Branches
             </button>
-            {BRANCHES.filter(b => b !== 'Other').map(branch => (
+            {allBranches.map(branch => (
               <button
                 key={branch}
                 onClick={() => setFilterBranch(branch)}
@@ -711,30 +719,43 @@ function MemberProfileModal({
 function AddMemberModal({
   isOpen,
   onClose,
-  onAdd
+  onAdd,
+  existingBranches
 }: {
   isOpen: boolean
   onClose: () => void
   onAdd: (member: Partial<Member>) => Promise<void>
+  existingBranches: string[]
 }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [branch, setBranch] = useState(BRANCHES[0])
+  const [branch, setBranch] = useState('')
+  const [customBranch, setCustomBranch] = useState('')
+  const [showCustom, setShowCustom] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
 
+  // Build the full list of branches: defaults + any from existing members
+  const allBranches = useMemo(() => {
+    const set = new Set(DEFAULT_BRANCHES)
+    existingBranches.forEach(b => set.add(b))
+    return Array.from(set).sort()
+  }, [existingBranches])
+
   if (!isOpen) return null
+
+  const finalBranch = showCustom ? customBranch.trim() : branch
 
   const handleSubmit = async () => {
     const newErrors: Record<string, string> = {}
     if (!name.trim()) newErrors.name = 'Name is required'
-    if (!branch) newErrors.branch = 'Branch is required'
+    if (!finalBranch) newErrors.branch = 'Branch is required'
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return }
 
     setLoading(true)
     try {
-      await onAdd({ name: name.trim(), phone: phone.trim(), branch })
-      setName(''); setPhone(''); setBranch(BRANCHES[0]); setErrors({})
+      await onAdd({ name: name.trim(), phone: phone.trim(), branch: finalBranch })
+      setName(''); setPhone(''); setBranch(''); setCustomBranch(''); setShowCustom(false); setErrors({})
       onClose()
     } catch (e) {
       setErrors({ form: e instanceof Error ? e.message : 'Failed to add member' })
@@ -778,13 +799,44 @@ function AddMemberModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-charcoal mb-1.5">Family Branch *</label>
-              <select
-                value={branch}
-                onChange={e => setBranch(e.target.value)}
-                className="w-full input-warm appearance-none bg-white"
-              >
-                {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
+              {!showCustom ? (
+                <div className="space-y-2">
+                  <select
+                    value={branch}
+                    onChange={e => { setBranch(e.target.value); setErrors(p => ({ ...p, branch: '' })) }}
+                    className={`w-full input-warm appearance-none bg-white ${errors.branch ? 'border-red-400 ring-2 ring-red-200' : ''}`}
+                  >
+                    <option value="">— Select a branch —</option>
+                    {allBranches.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => { setShowCustom(true); setBranch('') }}
+                    className="text-xs text-terracotta font-medium hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add new branch
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={customBranch}
+                    onChange={e => { setCustomBranch(e.target.value); setErrors(p => ({ ...p, branch: '' })) }}
+                    placeholder="Type new branch name e.g. Akinyi"
+                    className={`w-full input-warm ${errors.branch ? 'border-red-400 ring-2 ring-red-200' : ''}`}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setShowCustom(false); setCustomBranch('') }}
+                    className="text-xs text-mutedgray font-medium hover:underline"
+                  >
+                    ← Back to existing branches
+                  </button>
+                </div>
+              )}
+              {errors.branch && <p className="text-xs text-red-500 mt-1">{errors.branch}</p>}
             </div>
             {errors.form && <p className="text-xs text-red-500">{errors.form}</p>}
             <button onClick={handleSubmit} disabled={loading} className="w-full btn-primary py-3 text-sm font-medium mt-2">
@@ -1316,6 +1368,7 @@ export default function App() {
         isOpen={showAddMember}
         onClose={() => setShowAddMember(false)}
         onAdd={handleAddMember}
+        existingBranches={members.map(m => m.branch)}
       />
       {showLoginModal && (
         <LoginModal 
