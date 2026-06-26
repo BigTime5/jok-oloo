@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requireAdmin, AuthRequest } from '../middleware/auth.js';
 
@@ -11,6 +11,46 @@ const memberSchema = z.object({
   phone: z.string().optional().default(''),
   branch: z.string().min(1).max(100),
 });
+
+type MemberInput = z.infer<typeof memberSchema>;
+
+const syncMemberIdSequence = () => prisma.$executeRaw`
+  SELECT setval(
+    pg_get_serial_sequence('"Member"', 'id'),
+    COALESCE((SELECT MAX("id") FROM "Member"), 1),
+    true
+  )
+`;
+
+const isMemberIdSequenceConflict = (error: unknown) => {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+    return false;
+  }
+
+  const target = error.meta?.target;
+  return target === 'Member_id_key' || (Array.isArray(target) && target.includes('id'));
+};
+
+const createMember = async (data: MemberInput) => {
+  const insertMember = () => prisma.member.create({
+    data: {
+      name: data.name,
+      phone: data.phone || '',
+      branch: data.branch,
+    },
+  });
+
+  try {
+    return await insertMember();
+  } catch (error) {
+    if (!isMemberIdSequenceConflict(error)) {
+      throw error;
+    }
+
+    await syncMemberIdSequence();
+    return insertMember();
+  }
+};
 
 // All member routes require admin
 // membersRouter.use(requireAdmin); // Removed global requireAdmin
@@ -51,13 +91,7 @@ membersRouter.get('/:id', async (req: AuthRequest, res: Response): Promise<void>
 membersRouter.post('/', requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const data = memberSchema.parse(req.body);
-    const member = await prisma.member.create({
-      data: {
-        name: data.name,
-        phone: data.phone || '',
-        branch: data.branch,
-      },
-    });
+    const member = await createMember(data);
     
     await prisma.auditLog.create({
       data: {

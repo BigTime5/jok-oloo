@@ -10,6 +10,7 @@ import { authRouter } from './routes/auth.js';
 import { membersRouter } from './routes/members.js';
 import { paymentsRouter } from './routes/payments.js';
 import { remindersRouter } from './routes/reminders.js';
+import { requireAdmin } from './middleware/auth.js';
 import { startMonthUpdater } from './cron/monthUpdater.js';
 import { startReminderScheduler } from './cron/reminderScheduler.js';
 
@@ -57,7 +58,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.get('/api/seed', async (req, res) => {
+// Runtime seed is disabled in production (build step seeds via prisma db seed).
+// Non-production requires admin auth to prevent unauthenticated data overwrites.
+app.get('/api/seed', requireAdmin, async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+
   try {
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
@@ -104,6 +112,15 @@ app.get('/api/seed', async (req, res) => {
       });
       count++;
     }
+
+    await prisma.$executeRaw`
+      SELECT setval(
+        pg_get_serial_sequence('"Member"', 'id'),
+        COALESCE((SELECT MAX("id") FROM "Member"), 1),
+        true
+      )
+    `;
+
     res.json({ status: 'success', message: `Seeded ${count} members successfully!` });
   } catch (error) {
     console.error(error);
