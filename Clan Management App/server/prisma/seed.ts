@@ -49,6 +49,14 @@ async function main() {
     });
   }
 
+  await prisma.$executeRaw`
+    SELECT setval(
+      pg_get_serial_sequence('"Member"', 'id'),
+      COALESCE((SELECT MAX("id") FROM "Member"), 1),
+      true
+    )
+  `;
+
   console.log(`✅ Seeded ${members.length} members`);
 }
 

@@ -732,10 +732,15 @@ function AddMemberModal({
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return }
 
     setLoading(true)
-    await onAdd({ name: name.trim(), phone: phone.trim(), branch })
-    setLoading(false)
-    setName(''); setPhone(''); setBranch(BRANCHES[0]); setErrors({})
-    onClose()
+    try {
+      await onAdd({ name: name.trim(), phone: phone.trim(), branch })
+      setName(''); setPhone(''); setBranch(BRANCHES[0]); setErrors({})
+      onClose()
+    } catch (e) {
+      setErrors({ form: e instanceof Error ? e.message : 'Failed to add member' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -781,6 +786,7 @@ function AddMemberModal({
                 {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
+            {errors.form && <p className="text-xs text-red-500">{errors.form}</p>}
             <button onClick={handleSubmit} disabled={loading} className="w-full btn-primary py-3 text-sm font-medium mt-2">
               {loading ? 'Adding...' : 'Add Member'}
             </button>
@@ -1210,20 +1216,22 @@ export default function App() {
   }
 
   const handleAddMember = async (newMember: Partial<Member>) => {
-    try {
-      const token = localStorage.getItem('admin_token')
-      await fetch(`${API_BASE}/api/members`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(newMember)
-      })
-      await fetchMembers()
-    } catch (e) {
-      console.error(e)
+    const token = localStorage.getItem('admin_token')
+    const res = await fetch(`${API_BASE}/api/members`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(newMember)
+    })
+
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      throw new Error(data?.error || 'Failed to add member')
     }
+
+    await fetchMembers()
   }
 
   const handleUpdateRegistration = async (id: number, _paid?: boolean) => {
