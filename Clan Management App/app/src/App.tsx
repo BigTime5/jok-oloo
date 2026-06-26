@@ -613,7 +613,6 @@ function MemberProfileModal({
   existingBranches: string[]
 }) {
   const [isEditing, setIsEditing] = useState(false)
-  const [isEditingDetails, setIsEditingDetails] = useState(false)
   
   // Edit state
   const [editName, setEditName] = useState(member?.name || '')
@@ -647,17 +646,17 @@ function MemberProfileModal({
 
   const handleEditClick = () => {
     if (isAdmin) {
-      if (isEditingDetails) {
-        setIsEditingDetails(false)
-        setIsEditing(false)
-        // Reset to original
+      if (isEditing) {
+        // If they click 'Done', save details
+        handleSaveDetails()
+      } else {
+        // Enter edit mode
+        setIsEditing(true)
         if (member) {
           setEditName(member.name)
           setEditPhone(member.phone)
           setEditBranch(member.branch)
         }
-      } else {
-        setIsEditing(!isEditing)
       }
     } else {
       onLoginRequest()
@@ -667,22 +666,27 @@ function MemberProfileModal({
   const handleSaveDetails = async () => {
     if (!member) return
     const finalBranch = showCustom ? customBranch.trim() : editBranch
-    if (!editName.trim() || !finalBranch) return
     
-    setSaving(true)
-    try {
-      await onUpdateMember(member.id, {
-        name: editName.trim(),
-        phone: editPhone.trim(),
-        branch: finalBranch
-      })
-      setIsEditingDetails(false)
-      setIsEditing(false)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setSaving(false)
+    // Only save if things changed
+    if (finalBranch && editName.trim() && (
+      editName.trim() !== member.name || 
+      editPhone.trim() !== member.phone || 
+      finalBranch !== member.branch
+    )) {
+      setSaving(true)
+      try {
+        await onUpdateMember(member.id, {
+          name: editName.trim(),
+          phone: editPhone.trim(),
+          branch: finalBranch
+        })
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setSaving(false)
+      }
     }
+    setIsEditing(false)
   }
 
   return (
@@ -702,7 +706,7 @@ function MemberProfileModal({
               <span className="text-terracotta font-serif font-bold text-2xl">{member.name.charAt(0)}</span>
             </div>
             
-            {!isEditingDetails ? (
+            {!isEditing ? (
               <>
                 <h3 className="font-serif text-xl font-bold text-charcoal">{member.name}</h3>
                 <p className="text-sm text-mutedgray mt-1">{member.branch}</p>
@@ -767,17 +771,9 @@ function MemberProfileModal({
         <div className="p-6 border-b border-warmborder relative">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-bold text-charcoal uppercase tracking-wider">Contact Details</h4>
-            {isEditing && !isEditingDetails && (
-              <button 
-                onClick={() => setIsEditingDetails(true)}
-                className="text-xs text-terracotta font-medium hover:underline"
-              >
-                Edit Info
-              </button>
-            )}
           </div>
           
-          {!isEditingDetails ? (
+          {!isEditing ? (
             <div className="flex items-center gap-3">
               <Phone className="w-4 h-4 text-mutedgray" />
               <div>
@@ -848,19 +844,13 @@ function MemberProfileModal({
             Close
           </button>
           
-          {isEditingDetails ? (
-            <button 
-              onClick={handleSaveDetails} 
-              disabled={saving}
-              className="flex-1 py-2.5 rounded-full text-sm font-medium text-cream bg-terracotta hover:bg-[#D65D2A] transition-colors disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-          ) : (
-            <button onClick={handleEditClick} className={`flex-1 py-2.5 rounded-full text-sm font-medium text-cream transition-colors ${isEditing ? 'bg-olive' : 'bg-terracotta'}`}>
-              {isEditing ? 'Done Editing Payments' : 'Admin Edit'}
-            </button>
-          )}
+          <button 
+            onClick={handleEditClick} 
+            disabled={saving}
+            className={`flex-1 py-2.5 rounded-full text-sm font-medium text-cream transition-colors disabled:opacity-50 ${isEditing ? 'bg-terracotta hover:bg-[#D65D2A]' : 'bg-terracotta'}`}
+          >
+            {saving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Admin Edit')}
+          </button>
         </div>
       </div>
     </div>
