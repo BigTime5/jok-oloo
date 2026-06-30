@@ -600,8 +600,10 @@ function MemberProfileModal({
   onClose,
   onUpdateRegistration,
   onUpdateMonthly,
+  onUpdateMember,
   isAdmin,
-  onLoginRequest
+  onLoginRequest,
+  existingBranches
 }: {
   member: Member | null
   onClose: () => void
