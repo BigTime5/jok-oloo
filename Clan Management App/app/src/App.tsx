@@ -3,7 +3,7 @@ import { API_BASE } from './lib/api'
 import {
   Menu, X, Users, CreditCard, Bell, ChevronRight,
   Search, Plus, Phone, User, CheckCircle2, XCircle,
-  Megaphone, Heart, Home, Lock, LogOut
+  Megaphone, Heart, Home, Lock, LogOut, MessageSquare
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts'
 
@@ -1040,8 +1040,8 @@ function RemindersView() {
     }
   }
 
-  // Log that admin sent a reminder via WhatsApp
-  const handleSend = async (rem: ReminderData, idx: number) => {
+  // Log that admin sent a reminder
+  const handleSend = async (rem: ReminderData, idx: number, via: 'wame' | 'sms') => {
     setSending(idx)
     try {
       const token = localStorage.getItem('admin_token')
@@ -1055,7 +1055,7 @@ function RemindersView() {
           memberId: rem.memberId,
           month,
           message: language === 'en' ? rem.messageEn : rem.messageLuo,
-          sentVia: 'wame',
+          sentVia: via,
         }),
       })
     } catch (e) {
@@ -1063,8 +1063,15 @@ function RemindersView() {
     } finally {
       setSending(null)
     }
-    // Open WhatsApp link
-    window.open(language === 'en' ? rem.waLinkEn : rem.waLinkLuo, '_blank', 'noopener,noreferrer')
+    
+    if (via === 'wame') {
+      window.open(language === 'en' ? rem.waLinkEn : rem.waLinkLuo, '_blank', 'noopener,noreferrer')
+    } else {
+      const message = language === 'en' ? rem.messageEn : rem.messageLuo
+      // Format phone for SMS (requires international format starting with + or local starting with 0)
+      const phone = rem.phone.startsWith('0') ? rem.phone : `+${rem.phone}`
+      window.open(`sms:${phone}?body=${encodeURIComponent(message)}`, '_self')
+    }
   }
 
   return (
@@ -1144,14 +1151,26 @@ function RemindersView() {
                   </p>
                 </div>
                 {rem.phone ? (
-                  <button
-                    onClick={() => handleSend(rem, i)}
-                    disabled={sending === i}
-                    className="flex-shrink-0 px-4 py-2 bg-[#25D366] text-white rounded-lg text-sm font-medium hover:bg-[#128C7E] transition-colors flex items-center gap-2 disabled:opacity-60"
-                  >
-                    <Bell className="w-4 h-4" />
-                    {sending === i ? 'Opening...' : 'Send'}
-                  </button>
+                  <div className="flex-shrink-0 flex items-center gap-2">
+                    <button
+                      onClick={() => handleSend(rem, i, 'wame')}
+                      disabled={sending === i}
+                      className="px-3 py-2 bg-[#25D366] text-white rounded-lg text-sm font-medium hover:bg-[#128C7E] transition-colors flex items-center gap-1.5 disabled:opacity-60"
+                      title="Send via WhatsApp"
+                    >
+                      <Bell className="w-4 h-4" />
+                      {sending === i ? 'Opening...' : 'WA'}
+                    </button>
+                    <button
+                      onClick={() => handleSend(rem, i, 'sms')}
+                      disabled={sending === i}
+                      className="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center gap-1.5 disabled:opacity-60"
+                      title="Send via SMS"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      {sending === i ? 'Opening...' : 'SMS'}
+                    </button>
+                  </div>
                 ) : (
                   <span className="flex-shrink-0 px-4 py-2 bg-warmborder text-mutedgray rounded-lg text-xs">No Phone</span>
                 )}
