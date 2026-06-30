@@ -701,6 +701,13 @@ function MemberProfileModal({
             </button>
           </div>
           
+          {isEditing && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-terracotta/10 rounded-xl border border-terracotta/30 mb-4">
+              <span className="text-sm">✏️</span>
+              <p className="text-xs font-semibold text-terracotta">Editing mode — change name, branch, phone & payments below</p>
+            </div>
+          )}
+          
           <div className="flex flex-col items-center text-center">
             <div className="w-20 h-20 rounded-full bg-terracotta/10 flex items-center justify-center mb-3">
               <span className="text-terracotta font-serif font-bold text-2xl">{member.name.charAt(0)}</span>
@@ -714,16 +721,16 @@ function MemberProfileModal({
             ) : (
               <div className="w-full space-y-3 mt-2 text-left">
                 <div>
-                  <label className="block text-xs font-medium text-mutedgray mb-1">Name</label>
+                  <label className="block text-xs font-semibold text-terracotta mb-1">✏️ Name</label>
                   <input 
                     type="text" 
                     value={editName} 
                     onChange={e => setEditName(e.target.value)}
-                    className="w-full input-warm text-sm"
+                    className="w-full input-warm text-sm border-terracotta/50 ring-2 ring-terracotta/20 bg-terracotta/5"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-mutedgray mb-1">Branch</label>
+                  <label className="block text-xs font-semibold text-terracotta mb-1">✏️ Branch</label>
                   {!showCustom ? (
                     <div className="space-y-1">
                       <select
@@ -783,12 +790,12 @@ function MemberProfileModal({
             </div>
           ) : (
             <div>
-              <label className="block text-xs font-medium text-mutedgray mb-1">Phone</label>
+              <label className="block text-xs font-semibold text-terracotta mb-1">✏️ Phone</label>
               <input 
                 type="tel" 
                 value={editPhone} 
                 onChange={e => setEditPhone(e.target.value)}
-                className="w-full input-warm text-sm"
+                className="w-full input-warm text-sm border-terracotta/50 ring-2 ring-terracotta/20 bg-terracotta/5"
               />
             </div>
           )}
@@ -1068,9 +1075,11 @@ function RemindersView() {
       window.open(language === 'en' ? rem.waLinkEn : rem.waLinkLuo, '_blank', 'noopener,noreferrer')
     } else {
       const message = language === 'en' ? rem.messageEn : rem.messageLuo
-      // Format phone for SMS (requires international format starting with + or local starting with 0)
-      const phone = rem.phone.startsWith('0') ? rem.phone : `+${rem.phone}`
-      window.open(`sms:${phone}?body=${encodeURIComponent(message)}`, '_self')
+      const phone = rem.phone.replace(/\D/g, '')
+      // Use anchor click for maximum SMS compatibility across devices
+      const smsLink = document.createElement('a')
+      smsLink.href = `sms:${phone}?&body=${encodeURIComponent(message)}`
+      smsLink.click()
     }
   }
 
@@ -1079,7 +1088,7 @@ function RemindersView() {
       <div className="px-4 pt-4 space-y-6">
         <div>
           <h2 className="font-serif text-2xl font-bold text-charcoal">Payment Reminders</h2>
-          <p className="text-xs text-mutedgray mt-0.5">Send WhatsApp messages to unpaid members</p>
+          <p className="text-xs text-mutedgray mt-0.5">Send WhatsApp or SMS messages to unpaid members</p>
         </div>
 
         {/* Month selector + Generate button */}
